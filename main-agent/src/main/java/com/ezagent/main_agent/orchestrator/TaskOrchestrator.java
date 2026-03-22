@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import java.util.concurrent.CompletableFuture;
+
 @Service
 @RequiredArgsConstructor
 public class TaskOrchestrator {
@@ -24,26 +26,27 @@ public class TaskOrchestrator {
     private final LogService logService;
     private final ScheduleService scheduleService;
 
-    public TaskResponse processTask(TaskRequest request) {
-        
-        // 1. 태스크 접수
-        TaskRecord task = taskService.create(request);
-        logService.log(task.getId(), "orchestrator", "태스크 접수 완료");
+    public CompletableFuture<TaskResponse> processTask(TaskRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            // 1. 태스크 접수
+            TaskRecord task = taskService.create(request);
+            logService.log(task.getId(), "orchestrator", "태스크 접수 완료");
 
-        // 2. 과거 유사 태스크 검색
-        taskService.findSimilar(request.originalInput());
+            // 2. 과거 유사 태스크 검색
+            taskService.findSimilar(request.originalInput());
 
-        // 3. ⭐️ 진짜 Python AI Worker 호출 및 결과 수신! ⭐️
-        List<SubTaskEntity> subtasks = aiClient.process(request);
-        logService.log(task.getId(), "orchestrator", "AI 분석 및 서브태스크 분해 완료 (진짜 Python!)");
+            // 3. ⭐️ 진짜 Python AI Worker 호출 및 결과 수신! ⭐️
+            List<SubTaskEntity> subtasks = aiClient.process(request);
+            logService.log(task.getId(), "orchestrator", "AI 분석 및 서브태스크 분해 완료 (진짜 Python!)");
 
-        // 4. 스케줄링 엔진 가동
-        scheduleService.assignTimeSlots(task, subtasks);
-        logService.log(task.getId(), "orchestrator", "달력 스케줄링(테트리스) 완료");
+            // 4. 스케줄링 엔진 가동
+            scheduleService.assignTimeSlots(task, subtasks);
+            logService.log(task.getId(), "orchestrator", "달력 스케줄링(테트리스) 완료");
 
-        // 5. 상태 변경
-        task.setStatus("pending_review");
+            // 5. 상태 변경
+            task.setStatus("pending_review");
 
-        return new TaskResponse(task.getId(), subtasks, "AI 분해 및 스케줄링 성공! (Java <-> Python 도킹 완료!)");
+            return new TaskResponse(task.getId(), subtasks, "AI 분해 및 스케줄링 성공! (Java 비동기 <-> Python 도킹 완료!)");
+        });
     }
 }

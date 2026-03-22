@@ -1,186 +1,94 @@
-# Agent Harness Designer v3 — 사용 가이드
+# 🚀 EZ Agent (Agent Harness Designer v3) — 아주 쉬운 작동 원리 (USAGE GUIDE)
 
-> 플러그인 아키텍처 + 표준 Envelope + Python/Java/React 풀스택
-
----
-
-## v2 → v3 변경 요약
-
-| | v2 | v3 |
-|---|---|---|
-| 에이전트 추가 | 코드 여러 곳 수정 | 플러그인 파일 1개 + Router 한 줄 |
-| 데이터 전달 | 에이전트마다 다름 | **Envelope 표준** (봉투 형식) |
-| 사전 분석 | 없음 | Router + 도메인 분석기 (RFP 등) |
-| 프론트엔드 | Lovable만 | Lovable **or** React 직접 작성 |
+이 가이드는 사용자의 복잡한 지시(요청)를 받아 하위 작업으로 쪼개고 캘린더 일정을 잡아주는 **오케스트레이션 에이전트 시스템**이 도대체 어떻게 굴러가는지, 기술을 잘 몰라도 동화책처럼 술술 이해할 수 있도록 쉽게 풀어쓴 해설서입니다.
 
 ---
 
-## 핵심 개념: Envelope (봉투)
+## 📖 1. 서론: 왜 이렇게 복잡해 보이죠?
+궁극적인 목표는 **"수십 명의 비서(AI 에이전트)를 관리하는 한 명의 총괄 매니저(오케스트레이터)"**를 만드는 것입니다.
 
-편지 봉투처럼, **모든 에이전트가 같은 형식의 봉투를 주고받는다.**
-봉투 안의 내용물(payload)만 에이전트마다 다르고, 봉투 자체는 항상 동일.
+가령 사용자(당신)가 *"다음 주 학회 발표 준비 좀 해줘!"* 라고 한 마디만 던지면,
+1. **총괄 매니저(Java 백엔드)**가 일감을 접수하여 **AI 팀장(Python Worker)**에게 넘깁니다.
+2. AI 팀장은 내용을 슬쩍 보고 *"어? 학회 발표네? 이건 범용 처리반이 아니라 학회 전담 전문가가 필요하겠어!"* 라고 **스스로 판단해서 담당 직원에게 일을 배분**합니다.
+3. 담당 직원이 일을 여러 서브 태스크로 잘게 쪼개면, **시간 측정 전문가**가 시간을 배분하여 Java 측으로 다시 전달하고, Java가 캘린더 테트리스를 수행합니다.
 
-```
-┌─────────────────────────────────┐
-│ envelope: 보내는 사람, 받는 사람    │ ← 항상 같은 구조
-│ context: 원본 요청, 마감일, 태그   │ ← 읽기 전용, 수정 금지
-│ payload: 이 단계의 실제 데이터     │ ← 에이전트마다 다름
-│ history: 지금까지 누가 뭘 했는지   │ ← 계속 추가됨
-└─────────────────────────────────┘
-```
-
-이게 왜 중요하냐면, 나중에 "학회 준비 분석기"든 "면접 준비 분석기"든
-새 에이전트를 만들 때 이 봉투 형식만 맞추면 기존 파이프라인에 바로 끼워넣을 수 있어서.
+이 역할을 코드 상에서 훌쩍 분리해 두었기 때문에 얼핏 보면 복잡해 보이지만, 확장에 엄청나게 유리한 튼튼한 시스템입니다.
 
 ---
 
-## 새 에이전트 추가하는 법 (3단계)
+## ✉️ 2. 핵심 개념: '표준 봉투(Envelope)' 패스 규칙
 
-예: "학회 준비 분석기"를 추가한다면
+가장 중요한 것은 모든 부서 직원들(에이전트들)이 일할 때 **"규격화된 서류 결재판(Envelope)"만 주고받는다**는 규칙입니다.
 
-**Step 1**: `ai-agent/agent/plugins/_template.py`를 복사 → `conference_analyzer.py`
+회사에서 결재 서류판을 돌리는 것을 상상해 보세요:
+- **누가 누구한테 보내는지 (Sender / Receiver)** ➡️ `envelope`
+- **고객의 처음 지시사항 원본** (수정 금지) ➡️ `context`
+- **현재까지 담당자들이 작업한 문서 내용물** ➡️ `payload` (서브태스크 목록 등)
+- **이 결재판을 거쳐간 부서 도장 찍기** ➡️ `history`
 
-**Step 2**: 안에서 수정할 것:
+코드(파이썬 `ai-worker/worker/envelope.py`)에서도 비서들끼리 데이터를 넘길 때 단 1개의 '서류 은쟁반'(`AgentState`) 양식만 사용합니다.
+직원을 나중에 100명 더 뽑더라도(플러그인을 수십 개 만들더라도) 저 결재판 양식은 평생 똑같기 때문에, 시스템(그래프 파이프라인)은 절대 고장나지 않습니다!
+
+---
+
+## 🏃 3. 전체 흐름도: 제안서(RFP)를 쓰라고 요청해 보자!
+
+사용자가 프론트엔드에 **"스타트업 지원사업 제안서(RFP) 써야돼"** 라고 입력했다고 스토리라인을 그려봅시다.
+
+### 🏢 단계 1️: 총괄 매니저 접수 (Java Spring Boot, 포트 8080)
+1. 화면에서 위 문장을 입력받은 자바의 `TaskOrchestrator` 클래스가 접수를 받습니다.
+2. 예전 방식(동기식)이라면 Java 매니저는 파이썬 부서가 일 끝낼 때까지 멍하니 **기다렸습니다(블로킹)**. 
+3. 하지만 이제 **비동기(@Async, CompletableFuture) 처리**가 적용되어 "파이썬 부서에 일감 넘겨뒀으니 다른 고객도 계속 받아!" 하고 서버 여유 공간을 비워둡니다.
+
+### 👨‍💼 단계 2️: AI 팀장 분류 (Python LangGraph의 'Router')
+1. 파이썬 앱(`app.py`)이 요청을 넘겨받고 결재용 **빈 봉투**를 1개 만듭니다.
+2. `Router(안내데스크 노드)`에게 이 봉투를 넘깁니다. 
+3. `Router`는 내용을 읽어봅니다: *"RFP(제안서)라고 적혀있네?"*
+4. 옆에 있는 인사팀 장부(`plugins/__init__.py`)를 뒤져보니, "명단에 '제안서' 관련 키워드는 `rfp_analyzer` 부서가 전문이라고 되어 있군!"
+5. `Router`는 봉투의 겉면 `receiver` 칸에 조용히 `"rfp_analyzer"`(수신자)라고 적습니다.
+
+### 🔀 단계 3️: 똑똑한 길 찾기 (Conditional Edges 오케스트레이션)
+1. 파이썬의 중추 신경망인 `graph.py`는 `Router`가 던진 봉투의 `receiver` 칸을 읽어봅니다.
+2. 목적지가 `rfp_analyzer`라고 적혀있으므로, 철도 레일(Edge)의 스위치를 조작해서 곧바로 그쪽 방으로 봉투를 굴려보냅니다. (**이것이 바로 Conditional Edges 기술이며, 사실상 '진정한 오케스트레이션'의 핵심**입니다.)
+3. 만약 특이한 키워드가 없었다고 하면, 평범한 직원인 `task_analyzer`에게 보냈을 것입니다. 무작정 직진하지 않고 상황에 맞게 뻗어 나가는 구조입니다.
+
+### 📝 단계 4️: 담당 직원 분해 (플러그인 Analyzer)
+1. 지정받은 해당 분석가가 봉투를 열어서 `payload` 란에 열심히 문서를 쪼개서 적습니다.
+   - 예: "[RFP 분해] 1. 요구사항 분석 작성", "[RFP 분해] 2. PPT 발표 자료 틀 잡기"
+2. 작업을 성공적으로 마친 직원은 이제 시간 측정 부서(`time_estimator`)로 넘기기 위해 봉투 겉면만 살짝 고쳐서 옆으로 넘깁니다.
+
+### ⏱️ 단계 5️: 시간 측정 부서 (Time Estimator)
+1. `time_estimator`는 봉투 안에 쌓인 할 일들 목록을 주욱 훑어보고, 각각 이게 몇 분 정도 걸릴 지(`estimated_min`) 가짜 시간표(혹은 차후 AI 예측)를 적어줍니다.
+2. 모든 일이 끝났음을 알리기 위해 수신자를 `"done"`으로 적어 봉투 결재선을 조용히 종료합니다.
+
+### ✉️ 단계 6️: 리포트 반환 (→ Java ➡️ 프론트엔드 화면)
+1. 파이썬 부서는 이 너덜너덜하게 꽉 찬, 도장이 여러 개 찍힌 봉투를 이쁘게 요약(`AiResponse` 모델 변환)해서 다시 자바 총괄 매니저에게 넘깁니다. (거쳐간 이력인 `history`도 함께 포함합니다.)
+2. 자바 매니저는 이걸 받아서 달력(테트리스 스케줄링) 모듈(`ScheduleService`)을 통해 실제 내 구글 캘린더의 비어 있는 시간대에 쏙쏙 빈틈없이 박아줍니다.
+3. 짜잔! 리액트 화면에 최종 계획표(Dashboard)와 서브태스크들이 이쁘게 뿌려집니다 🎉
+
+---
+
+## 🛠️ 4. 새로운 비서(직원) 영입하기
+
+이 시스템이 진짜 무서운 이유는 **새로운 기능(도메인)**을 추가할 때 파이프라인의 구조(Java 코드나 Router 등)를 **단 한 줄도 건드릴 필요가 없다**는 점입니다. 오로지 신규 직원만 추가 영입하면 됩니다!
+
+**예시: "면접 코디네이터" 고용하기**
+1. `ai-worker/worker/plugins/` 폴더에 들어가서 `_template.py` 파일을 복사합니다! 이름은 `interview_analyzer.py` 정도로 지어줍시다.
+2. 파일 위쪽에 있는 "나를 부를 조건(호출 키워드)"만 정의해 줍니다.
 ```python
 AGENT_CONFIG = {
-    "name": "conference-analyzer",
-    "route_keywords": ["학회", "컨퍼런스", "발표", "논문"],
+    "name": "interview_analyzer",           # 내 사원증 번호
+    "route_keywords": ["면접", "인터뷰", "채용"], # 이런 단어가 나오면 무조건 절 부르세요!
 }
 ```
-그리고 `analyze()` 함수에 분석 로직 구현.
-
-**Step 3**: `router.py`에 한 줄 추가:
-```python
-route_map["conference"] = "conference_analyzer"
-```
-
-끝. 나머지 파이프라인(task_analyzer → time_estimator → Java)은 수정 불필요.
+3. 파일 안쪽의 `analyze()` 함수(실제 업무를 하는 공간)에 면접 준비를 어떻게 쪼갤지, 자유롭게 파이썬/LLM 로직을 작성합니다.
+4. **끝입니다!** 파이썬의 오토로더 기법에 의해 서버를 껐다 켜면 바로 인사팀 장부에 추가되고, `Router`가 알아서 면접 키워드가 들어올 때 얘한테 오케스트레이션(배분)해 줍니다.
 
 ---
 
-## 구현 순서 (Step by Step)
+## 💡 요약 및 결론 
+- **Java Spring Boot:** 접수처 대행 및 스케줄 테트리스(DB 저장/API/동시성 방어).
+- **Python LangGraph:** 본사 브레인. `AgentState`라는 결재 봉투(`Envelope`)를 부서마다 던지고 굴려가면서 똑똑하게 업무를 배분(오케스트레이션)하고 결과를 모읍니다.
+- **React Frontend:** 눈에 보이는 비주얼 UI로 상황을 총정리.
 
-### Step 1: Java 모델 + 알고리즘
-
-GPT/Gemini에게:
-```
-아래 설계서의 Java 부분을 구현해줘.
-Spring Boot 프로젝트로.
-
-포함할 것:
-1. Envelope.java (표준 봉투 모델)
-2. SubTask.java, TimeSlot.java, ScheduleResult.java
-3. BackwardScheduler.java (마감일 역산 알고리즘)
-4. ForwardScheduler.java (빈 시간 순차 배치)
-5. JUnit 단위 테스트
-
-[설계서의 Java 알고리즘 부분 붙여넣기]
-```
-
-### Step 2: Java API 서버
-
-```
-Step 1의 알고리즘을 REST API로 감싸줘.
-- POST /api/schedule/calculate
-- GET /api/calendar/slots
-- POST /api/calendar/create
-- POST /api/tasks (프론트엔드 진입점)
-- GET /api/tasks/summary
-
-Google Calendar API 연동 포함.
-CORS 설정: localhost:3000 허용.
-```
-
-### Step 3: Python Envelope + 플러그인 기반
-
-```
-아래 설계서를 기반으로 Python 프로젝트를 만들어줘.
-
-1. envelope.py — Envelope 생성/검증 유틸
-2. plugins/_template.py — 플러그인 템플릿
-3. plugins/__init__.py — 플러그인 자동 로딩
-4. state.py — LangGraph State (Envelope 기반)
-
-[설계서의 Envelope 스펙 + 플러그인 템플릿 붙여넣기]
-```
-
-### Step 4: Python 공통 노드
-
-```
-LangGraph 노드를 구현해줘.
-- router.py: 태스크 유형 분류 → 라우팅
-- task_analyzer.py: 서브태스크 분해 (2가지 모드)
-- time_estimator.py: 소요시간 추정
-모두 Envelope 형식으로 입출력.
-
-[설계서의 각 노드 정의 붙여넣기]
-```
-
-### Step 5: RFP Analyzer 플러그인
-
-```
-_template.py를 기반으로 rfp_analyzer.py를 만들어줘.
-RFP 문서를 분석하여 제안서 구조를 추출하는 에이전트.
-
-[설계서의 RFP Analyzer 정의 붙여넣기]
-```
-
-### Step 6: LangGraph 그래프 연결
-
-```
-모든 노드를 LangGraph 그래프로 연결해줘.
-Router → 조건 분기 → 공통 파이프라인.
-Tool Calling으로 Java API 호출.
-
-[설계서의 그래프 정의 붙여넣기]
-```
-
-### Step 7: React 프론트엔드
-
-```
-React + TypeScript + Tailwind CSS로 3개 화면을 만들어줘.
-Lovable이 아니라 직접 코드를 작성해줘.
-
-[설계서의 React 프론트엔드 프롬프트 3개 붙여넣기]
-```
-
-### Step 8: docker-compose
-
-```
-아래 3개 서비스를 docker-compose로 묶어줘.
-- ai-agent: Python (port 8000)
-- scheduling-engine: Java Spring Boot (port 8080)
-- frontend: React dev server (port 3000)
-```
-
----
-
-## 자원 분산 가이드
-
-| Step | 추천 도구 | 이유 |
-|------|---------|------|
-| 1~2: Java | GPT 또는 Gemini | Java/Spring 코드 생성 잘 됨 |
-| 3~6: Python | Claude | LangGraph 이해도 높음 |
-| 7: React | Lovable 또는 GPT | UI 생성 특화 |
-| 8: Docker | 아무거나 | 단순 설정 |
-
----
-
-## FAQ
-
-**Q: Envelope이 오버엔지니어링 아닌가?**
-A: 에이전트가 2~3개면 맞음. 근데 이지가 "RFP 분석기" 추가하고 싶다고 했잖아.
-앞으로 학회, 면접, 다른 도메인도 추가될 수 있고, 그때마다 기존 코드 건드리는 건 고통.
-지금 봉투 규격 한 번 잡아두면 이후로는 플러그인만 만들면 됨.
-
-**Q: Router가 잘못 분류하면?**
-A: Router 프롬프트에서 "확신이 없으면 사용자에게 확인" 규칙이 있음.
-그리고 route_keywords를 플러그인에서 자동 로딩하니까 키워드만 보강하면 됨.
-
-**Q: analyzed_task 없이 task_analyzer에 바로 가면?**
-A: 정상 동작. task_analyzer가 raw_input도 받을 수 있게 2가지 모드로 설계되어 있음.
-"학회 예약"처럼 사전 분석 불필요한 건 Router → task_analyzer 직행.
-
-**Q: Lovable 쓰고 싶으면?**
-A: 설계서의 "React 프론트엔드" 프롬프트를 그대로 Lovable에 입력해도 됨.
-API URL만 맞추면 동일하게 동작.
+이 모든 3박자가 모여서 당신의 입력 한 번에 수많은 서브 과정을 스스로 다이내믹하게 결정하고 해결해주는 **"진짜 오케스트레이터(EZ Agent)"**로 작동하게 된 것입니다!
