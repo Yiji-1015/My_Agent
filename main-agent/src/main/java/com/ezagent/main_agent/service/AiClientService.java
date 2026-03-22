@@ -21,14 +21,13 @@ public class AiClientService {
     public List<SubTaskEntity> process(TaskRequest request) {
         System.out.println("🚀 [AiClientService] 파이썬 AI 워커(8000)에 진짜 분석을 요청합니다!");
 
-        // 1. 파이썬이 원하는 양식(JSON)에 맞춰서 포장하기
-        Map<String, Object> aiRequest = Map.of(
-            "task", request.originalInput(),
-            "deadline", request.deadline() != null ? request.deadline().toString() : null,
-            "user_profile", Map.of(),
-            "related_past_tasks", List.of(),
-            "attachments", request.attachments() != null ? request.attachments() : List.of()
-        );
+        // 1. 파이썬이 원하는 양식(JSON)에 맞춰서 포장하기 (Map.of는 null 값을 허용하지 않으므로 HashMap 사용 필수!)
+        java.util.Map<String, Object> aiRequest = new java.util.HashMap<>();
+        aiRequest.put("task", request.originalInput());
+        aiRequest.put("deadline", request.deadline() != null ? request.deadline().toString() : null);
+        aiRequest.put("user_profile", java.util.Map.of());
+        aiRequest.put("related_past_tasks", java.util.List.of());
+        aiRequest.put("attachments", request.attachments() != null ? request.attachments() : java.util.List.of());
 
         // 2. 파이썬으로 슝! 쏘고 응답(Map) 받아오기
         Map<String, Object> response = restTemplate.postForObject(AI_WORKER_URL, aiRequest, Map.class);

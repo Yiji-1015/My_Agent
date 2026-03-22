@@ -169,7 +169,7 @@ export function useOrchestration() {
           attachments: []
         })
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         // 자바가 전달해준 실제 Python 에이전트의 분해 결과물을 꽂아넣습니다!
