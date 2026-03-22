@@ -1,0 +1,26 @@
+# Development 
+node_modules/
+dist/
+build/
+target/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+.venv/
+
+# Java
+*.class
+.gradle/
+build/
+out/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.iml
+.DS_Store
+Thumbs.db
