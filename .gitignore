@@ -1,26 +1,75 @@
-# Development 
+# Unified .gitignore for EZ Agent Full-Stack Project
+
+# ========================
+# Node / Frontend (React)
+# ========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
 node_modules/
 dist/
+dist-ssr/
 build/
+*.local
+
+# ========================
+# Java / Spring Boot (main-agent)
+# ========================
+HELP.md
 target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 
-# Python
-__pycache__/
-*.pyc
-venv/
-.env
-.venv/
-
-# Java
-*.class
-.gradle/
-build/
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+!**/src/main/**/build/
+!**/src/test/**/build/
 out/
 
-# IDE / OS
+# ========================
+# Python / FastAPI (ai-worker)
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+
+# ========================
+# IDE / OS / Editors
+# ========================
+.vscode/*
+!.vscode/extensions.json
+
 .idea/
-.vscode/
-*.swp
-*.iml
 .DS_Store
 Thumbs.db
+*.swp
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+*.iws
+*.iml
+*.ipr
