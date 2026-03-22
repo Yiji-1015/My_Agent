@@ -1,80 +1,102 @@
+import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { CheckCircle2, Clock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
+import type { Subtask } from "@/lib/api";
+import { addDays, format, startOfWeek } from "date-fns";
+import { ko } from "date-fns/locale";
 
-const DAYS = ["월", "화", "수", "목", "금"];
-
-const MOCK_SCHEDULE = [
-  { day: 0, start: 9, duration: 0.5, title: "텍스트 맥락 분석", priority: "high" as const },
-  { day: 0, start: 10, duration: 1, title: "제안서 목차 작성", priority: "high" as const },
-  { day: 1, start: 9, duration: 2, title: "각 섹션 초안 작성", priority: "medium" as const },
-  { day: 2, start: 9, duration: 1.5, title: "예산 및 일정표 작성", priority: "medium" as const },
-  { day: 3, start: 9, duration: 0.75, title: "최종 검토 및 수정", priority: "low" as const },
-  { day: 3, start: 10.5, duration: 0.5, title: "제출 준비 및 포맷팅", priority: "low" as const },
+const dayLabels = ["월", "화", "수", "목", "금"];
+const blockColors = [
+  "bg-neon-pink/20 border-neon-pink/40",
+  "bg-neon-mint/20 border-neon-mint/40",
+  "bg-neon-yellow/20 border-neon-yellow/40",
+  "bg-primary/15 border-primary/30",
+  "bg-secondary/20 border-secondary/40",
 ];
 
-const HOURS = Array.from({ length: 9 }, (_, i) => i + 9); // 9~17
-
-const priorityColors = {
-  high: "bg-priority-high/15 border-priority-high/30 text-priority-high",
-  medium: "bg-priority-medium/15 border-priority-medium/30 text-priority-medium",
-  low: "bg-priority-low/15 border-priority-low/30 text-priority-low",
-};
-
 export default function TaskReview() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">일정 리뷰</h1>
-        <p className="mt-1 text-sm text-muted-foreground">AI가 배치한 주간 일정을 확인하세요.</p>
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const subtasks: Subtask[] = location.state?.subtasks || [];
+
+  // distribute subtasks across weekdays
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const days = dayLabels.map((label, i) => ({
+    label,
+    date: format(addDays(weekStart, i), "M/d", { locale: ko }),
+    tasks: [] as (Subtask & { colorClass: string })[],
+  }));
+
+  subtasks.forEach((st, i) => {
+    const dayIdx = i % 5;
+    days[dayIdx].tasks.push({ ...st, colorClass: blockColors[i % blockColors.length] });
+  });
+
+  const handleConfirm = () => {
+    toast({ title: "✅ 일정이 확정되었어요!", description: "달력에 성공적으로 등록했습니다 🎉" });
+  };
+
+  if (subtasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <p className="text-muted-foreground text-lg">아직 분석된 태스크가 없어요.</p>
+        <Button onClick={() => navigate("/")} className="rounded-2xl">홈으로 돌아가기</Button>
       </div>
+    );
+  }
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
-        <div className="grid min-w-[700px]" style={{ gridTemplateColumns: "60px repeat(5, 1fr)" }}>
-          {/* Header */}
-          <div className="border-b bg-muted/50 p-2" />
-          {DAYS.map((d) => (
-            <div key={d} className="border-b border-l bg-muted/50 p-2 text-center text-xs font-semibold text-muted-foreground">
-              {d}
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2">
+        <h1 className="text-2xl md:text-3xl font-display font-bold neon-text-mint">📅 주간 타임라인</h1>
+        <p className="text-muted-foreground">AI가 배치한 일정을 확인하세요</p>
+      </motion.div>
+
+      {/* Timeline grid */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+        className="grid grid-cols-5 gap-3"
+      >
+        {days.map((day, di) => (
+          <div key={di} className="space-y-2">
+            <div className="text-center">
+              <div className="font-display font-bold text-foreground">{day.label}</div>
+              <div className="text-xs text-muted-foreground">{day.date}</div>
             </div>
-          ))}
-
-          {/* Time grid */}
-          {HOURS.map((hour) => (
-            <>
-              <div key={`h-${hour}`} className="border-b p-2 text-right text-xs text-muted-foreground pr-3">
-                {hour}:00
-              </div>
-              {DAYS.map((_, dayIdx) => {
-                const block = MOCK_SCHEDULE.find((b) => b.day === dayIdx && hour >= b.start && hour < b.start + b.duration);
-                const isStart = block && hour === Math.floor(block.start);
-                return (
-                  <div key={`${hour}-${dayIdx}`} className="relative border-b border-l min-h-[48px]">
-                    {isStart && block && (
-                      <div
-                        className={`absolute inset-x-1 rounded-md border px-2 py-1 text-xs font-medium ${priorityColors[block.priority]}`}
-                        style={{
-                          top: `${(block.start - hour) * 48}px`,
-                          height: `${block.duration * 48 - 4}px`,
-                        }}
-                      >
-                        {block.title}
-                      </div>
+            <div className="space-y-2 min-h-[200px]">
+              {day.tasks.map((task, ti) => (
+                <motion.div
+                  key={ti}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: di * 0.1 + ti * 0.05 }}
+                  className={`glass-panel p-3 border ${task.colorClass} rounded-2xl`}
+                >
+                  <p className="text-sm font-semibold text-foreground leading-snug">{task.title}</p>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    <span>{task.estimatedMin}분</span>
+                    {task.priority && (
+                      <>
+                        <Zap className="w-3 h-3" />
+                        <span>{task.priority === "high" ? "상" : task.priority === "medium" ? "중" : "하"}</span>
+                      </>
                     )}
                   </div>
-                );
-              })}
-            </>
-          ))}
-        </div>
-      </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </motion.div>
 
-      <Button
-        onClick={() => toast.success("일정이 확정되었습니다!")}
-        className="bg-brand text-brand-foreground hover:bg-brand/90"
+      <Button onClick={handleConfirm}
+        className="w-full h-14 text-lg font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all animate-neon-pulse gap-2"
       >
-        <CheckCircle className="mr-2 h-4 w-4" />
-        이대로 확정하기
+        <CheckCircle2 className="w-5 h-5" />
+        ✨ 이대로 내 달력에 확정하기
       </Button>
     </div>
   );

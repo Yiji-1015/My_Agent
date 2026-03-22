@@ -13,6 +13,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class SubTaskEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -23,16 +24,22 @@ public class SubTaskEntity {
 
     @Column(length = 200)
     private String title;
-    private Integer estimatedMin;
-    private Integer actualMin;
+
+    private Integer estimatedMin; // AI가 추정한 시간
+    private Integer actualMin; // 실제 소요된 시간 (나중에 사용자가 입력)
+
     @Column(length = 20)
-    private String status;
+    private String status; // todo, in_progress, done
+
+    // 스케줄링 알고리즘이 채워줄 필드들
     private LocalDateTime scheduledStart;
     private LocalDateTime scheduledEnd;
 
     @Column(length = 200)
-    private String outputRef; // 구글 캘린더, 노션 등의 ID 저장용
+    private String outputRef; // 구글 캘린더 이벤트 ID 등
+
     @Column(length = 10)
-    private String priority;
-    private Integer sortOrder;
+    private String priority; // high, medium, low
+
+    private Integer sortOrder; // 순서
 }

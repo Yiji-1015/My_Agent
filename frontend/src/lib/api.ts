@@ -1,13 +1,20 @@
-export interface TaskRequest {
-  originalInput: string;
-  deadline: string;
-  attachments: string[];
-}
+import { toast } from "@/hooks/use-toast";
+
+const API_BASE = "http://localhost:8080";
 
 export interface Subtask {
   title: string;
   estimatedMin: number;
   priority?: "high" | "medium" | "low";
+  handledBy?: string;
+}
+
+export interface AgentStep {
+  id: string;
+  icon: string;
+  label: string;
+  description: string;
+  durationMs: number;
 }
 
 export interface TaskResponse {
@@ -15,39 +22,75 @@ export interface TaskResponse {
   subtasks: Subtask[];
 }
 
-const MOCK_RESPONSE: TaskResponse = {
-  taskId: "mock-uuid-001",
-  subtasks: [
-    { title: "1. 텍스트 맥락 분석", estimatedMin: 30, priority: "high" },
-    { title: "2. 제안서 목차 작성", estimatedMin: 60, priority: "high" },
-    { title: "3. 각 섹션 초안 작성", estimatedMin: 120, priority: "medium" },
-    { title: "4. 예산 및 일정표 작성", estimatedMin: 90, priority: "medium" },
-    { title: "5. 최종 검토 및 수정", estimatedMin: 45, priority: "low" },
-    { title: "6. 제출 준비 및 포맷팅", estimatedMin: 30, priority: "low" },
-  ],
-};
+export interface TaskRequest {
+  originalInput: string;
+  deadline: string;
+  attachments: string[];
+}
 
-export async function submitTask(data: TaskRequest): Promise<TaskResponse> {
+export const AGENT_STEPS: AgentStep[] = [
+  {
+    id: "router",
+    icon: "🚦",
+    label: "Router Node",
+    description: "의도를 분석하고 라우팅 키워드를 추출하고 있어요...",
+    durationMs: 1500,
+  },
+  {
+    id: "analyzer",
+    icon: "🔄",
+    label: "Specialized Plugin Analyzer",
+    description: "전문 에이전트가 업무를 세밀하게 분해하고 있어요...",
+    durationMs: 2000,
+  },
+  {
+    id: "estimator",
+    icon: "⏱️",
+    label: "Time Estimator",
+    description: "각 서브태스크의 소요 시간을 계산하고 있어요...",
+    durationMs: 1500,
+  },
+  {
+    id: "scheduler",
+    icon: "📅",
+    label: "Java Scheduling Engine",
+    description: "실제 캘린더 좌표에 태스크를 매핑하고 있어요...",
+    durationMs: 1000,
+  },
+];
+
+const FALLBACK_SUBTASKS: Subtask[] = [
+  { title: "프로젝트 맥락 분석 및 자료 수집", estimatedMin: 30, priority: "high", handledBy: "RFP Analyzer" },
+  { title: "목차 및 구조 설계", estimatedMin: 60, priority: "high", handledBy: "RFP Analyzer" },
+  { title: "핵심 내용 초안 작성", estimatedMin: 90, priority: "medium", handledBy: "Content Writer" },
+  { title: "시각 자료 및 도표 제작", estimatedMin: 45, priority: "medium", handledBy: "Design Agent" },
+  { title: "리뷰 및 최종 검수", estimatedMin: 30, priority: "low", handledBy: "QA Agent" },
+  { title: "최종 제출 및 백업", estimatedMin: 15, priority: "low", handledBy: "Scheduler" },
+];
+
+export async function createTask(req: TaskRequest): Promise<TaskResponse> {
   try {
-    const res = await fetch("http://localhost:8080/api/tasks", {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`${API_BASE}/api/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(req),
+      signal: controller.signal,
     });
-    if (!res.ok) throw new Error("API error");
-    const json = await res.json();
-    // Add priority if not present
-    return {
-      ...json,
-      subtasks: json.subtasks.map((s: Subtask, i: number) => ({
-        ...s,
-        priority: s.priority || (i < 2 ? "high" : i < 4 ? "medium" : "low"),
-      })),
-    };
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
   } catch {
-    // Fallback to mock data
-    console.warn("API 호출 실패 — Mock 데이터를 사용합니다.");
-    await new Promise((r) => setTimeout(r, 2000));
-    return MOCK_RESPONSE;
+    toast({
+      title: "⚠️ 데모 모드 전환",
+      description: "백엔드와 연결되지 않아 임시 데모 모드로 전환합니다. 걱정 마세요, 모든 UI는 정상 작동해요! 💜",
+      duration: 5000,
+    });
+
+    return {
+      taskId: crypto.randomUUID(),
+      subtasks: FALLBACK_SUBTASKS,
+    };
   }
 }
