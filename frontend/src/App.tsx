@@ -11,6 +11,7 @@ import TaskReview from "./pages/TaskReview";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import TaskQueue from "./pages/TaskQueue";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/review" element={<TaskReview />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/tasks" element={<TaskQueue />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

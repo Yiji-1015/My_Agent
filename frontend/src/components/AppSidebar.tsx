@@ -1,4 +1,4 @@
-import { Home, CalendarDays, BarChart3, User, Bot } from "lucide-react";
+import { Home, CalendarDays, BarChart3, User, Bot, ListTodo } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -10,6 +10,7 @@ const items = [
   { title: "홈", url: "/", icon: Home },
   { title: "일정 리뷰", url: "/review", icon: CalendarDays },
   { title: "대시보드", url: "/dashboard", icon: BarChart3 },
+  { title: "태스크 큐", url: "/tasks", icon: ListTodo },
   { title: "내 프로필", url: "/profile", icon: User },
 ];
 
