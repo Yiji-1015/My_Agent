@@ -10,6 +10,8 @@
 
 EZ Agent는 확장성과 유연성을 극대화하기 위해 MSA(Microservices Architecture) 기반으로 설계되었습니다. React(프론트엔드), Java(오케스트레이터), Python(AI 워커) 3개의 핵심 모듈이 통일된 규격인 '표준 봉투(Envelope)'를 통해 통신합니다. 사용자의 자연어 요청은 오케스트레이터를 거쳐 최적의 AI 전문 플러그인으로 라우팅되며, 각 모듈은 독립적으로 동작하여 새로운 AI 비서를 손쉽게 확장할 수 있는 플러그인 아키텍처를 가집니다.
 
+
+
 ```mermaid
 graph TD
     User([👨‍💻 사용자]) -->|1. 태스크 최초 요청 (자연어)| UI[💻 React Frontend<br/>TaskQueue: Port 5173]
